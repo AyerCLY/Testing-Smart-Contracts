@@ -9,6 +9,10 @@
 //execute them: the way we’ll be doing this is by calling a function named it() which also takes two arguments: a string that describes what the test actually does and a callback.
 //use the name of our contract
 const CryptoZombies = artifacts.require("CryptoZombies);
+
+//In order to keep our tests nice and tidy we've moved the code above to helpers/utils.js and imported it into “CryptoZombies.js” like so:
+const utils = require("./helpers/utils");                                        
+                                        
 //initialized the zombieNames array for you
 const zombieNames = ["Zombie 1", "Zombie 2"];
 
@@ -22,13 +26,19 @@ contract("CryptoZombies", (accounts) => {
     //1. initialize `alice` and `bob`
     let [alice, bob] = accounts;
     
+    // creat hooks
+    let contractInstance;
+
+    beforeEach(async () => {
+        // let's put here the code that creates a new contract instance
+        contractInstance = await CryptoZombies.new();        //remove "const" as hooks created
+    });
+    
     //The first parameter passed to the it() function should be the name of our test.
-    it("should be able to create a new zombie", async() => { //2 & 3. Replace the first parameter and make the callback async
-        
+    it("should be able to create a new zombie", async() => { //2 & 3. Replace the first parameter and make the callback async   
         // Let's create an instance of our contract. Declare a new const named contractInstance, and set it equal to the result of the CryptoZombies.new() function.
-        const contractInstance = await CryptoZombies.new();
+        // remove it "const contractInstance = await CryptoZombies.new();" as "hooks" has been created in above 
 //B. Act
-      
         //The following calls createRandomZombie and makes sure msg.sender is set to Alice's address: 
         //Use the zombie's name and the owner as arguments.
         const result = await contractInstance.createRandomZombie(zombieNames[0], {from:alice});
@@ -40,7 +50,13 @@ contract("CryptoZombies", (accounts) => {
 
     })
     })
- 
 
+    //define the new it() function, the 2rd test
+    it("should not allow two zombies", async () => {
+        //First, let's have Alice create her first zombie. Give it zombieNames[0] as the name and don't forget to properly set the owner.
+        await  contractInstance.createRandomZombie(zombieNames[0], {from: alice});
+        //await utils.shouldThrow(MyAwesomeContractInstance.myAwesomeFunction());
+        await utils.shouldThrow(contractInstance.createRandomZombie(zombieNames[1], {from: alice}));
+    })
 
 })
