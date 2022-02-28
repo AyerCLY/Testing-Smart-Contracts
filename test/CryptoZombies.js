@@ -60,9 +60,19 @@ contract("CryptoZombies", (accounts) => {
     })
 
    //To group tests, Truffle provides a function called context. Let me quickly show you how use it in order to better structure our code:
-    xcontext("with the single-step transfer scenario", async () => {
+   context("with the single-step transfer scenario", async () => {
         it("should transfer a zombie", async () => {
-        // TODO: Test the single-step transfer scenario.
+          // we're going to be testing the scenario in which Alice transfers her ERC721 token to Bob, in a single step.
+          //The first line of the function should call createRandomZombie. Give it zombieNames[0] as the name and make sure Alice is the owner.
+          const result = await contractInstance.createRandomZombie(zombieNames[0], {from:alice});
+          //The second line should declare a const named zombieId and set it equal to the zombie's id. In Chapter 5, you learned how to retrieve this piece of information. Refresh your memory, if needed.
+          const zombieId = result.logs[0].args.zombieId.toNumber();
+          //Then, we have to call transferFrom with alice and bob as the first parameters. Make sure Alice calls this function and we're awaiting for it to finish running before moving to the next step
+          await contractInstance.transferFrom(alice, bob, zombieId, {from:alice});
+          //Declare a const called newOwner. Set it equal to ownerOf called with zombieId.
+          const newOwner = await contractInstance.ownerOf(zombieId);
+          //Lastly, let's check whether Bob owns this ERC721 token. Putting this into code, it means we should run assert.equal with newOwner and bob as parameters;
+          assert.equal(newOwner,bob);
         })
     })
 
