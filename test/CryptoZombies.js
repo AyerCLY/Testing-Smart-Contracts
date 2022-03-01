@@ -177,7 +177,7 @@ Contract: CryptoZombies
             //In Chapter 5, you learned how to retrieve this piece of information. Refresh your memory, if needed.
             //we can retrieve the name of Alice's newly created zombie using something like this: result.logs[0].args.name. 
            //In a similar fashion, we can get the id and the _dna.
-          const zombieId = result.logs[0].args.zombieId.toNumber();
+          const zombieId = result.logs[0].args.zombieId.toNumber(); //why "toNumber" refer to zombie's id?
           //Then, we have to call transferFrom with alice and bob as the first parameters. 
             //Make sure Alice calls this function and we're awaiting for it to finish running before moving to the next step
           await contractInstance.transferFrom(alice, bob, zombieId, {from:alice});
@@ -188,13 +188,96 @@ Contract: CryptoZombies
         })
     })
 
-    xcontext("with the two-step transfer scenario", async () => {
+    context("with the two-step transfer scenario", async () => {
         it("should approve and then transfer a zombie when the approved address calls transferFrom", async () => {
-        // TODO: Test the two-step scenario.  The approved address calls transferFrom
+    //Alice creates a new ERC721 token and then calls approve.
+            const result = await contractInstance.createRandomZombie(zombieNames[0], {from: alice});
+            const zombieId = result.logs[0].args.zombieId.toNumber();
+            await contractInstance.approve(bob, zombieId, {from: alice});
+    //Next, Bob runs transferFrom which should make him the owner of the EC721 token.
+            await contractInstance.transferFrom(alice, bob, zombieId, {from: bob});
+            const newOwner = await contractInstance.ownerOf(zombieId);
+    //Finally, we have to call assert.equal with newOwner and bob as parameters.
+            assert.equal(newOwner,bob);
         })
+//Copy and paste the code from the previous test and have Alice call transferFrom.
         it("should approve and then transfer a zombie when the owner calls transferFrom", async () => {
-            // TODO: Test the two-step scenario.  The owner calls transferFrom
+            const result = await contractInstance.createRandomZombie(zombieNames[0], {from: alice});
+            const zombieId = result.logs[0].args.zombieId.toNumber();
+            await contractInstance.approve(bob, zombieId, {from: alice});
+            await contractInstance.transferFrom(alice, bob, zombieId, {from: alice});
+            const newOwner = await contractInstance.ownerOf(zombieId);
+            assert.equal(newOwner,bob);
         })
+/*
+This test is pretty straightforward and consists of the following steps:
+
+First, we're going to be creating two new zombies - one for Alice and the other one for Bob.
+Second, Alice will run attack on her zombie with Bob's zombieId as a parameter
+Finally, for the test to pass, we are going to check if result.receipt.status equals true
+While we're here, let's say I've quickly coded all this logic, wrapped it in an it() function, and run truffle test.
+
+Our test just failed☹️.
+
+But why?
+
+Let's figure it out. First, we're going to take a closer look at the code behind createRandomZombie():
+
+function createRandomZombie(string _name) public {
+  require(ownerZombieCount[msg.sender] == 0);
+  uint randDna = _generateRandomDna(_name);
+  randDna = randDna - randDna % 100;
+  _createZombie(_name, randDna);
+}
+So far so good. Moving forward, let's dig into _createZombie():
+
+function _createZombie(string _name, uint _dna) internal {
+  uint id = zombies.push(Zombie(_name, _dna, 1, uint32(now + cooldownTime), 0, 0)) - 1;
+  zombieToOwner[id] = msg.sender;
+  ownerZombieCount[msg.sender] = ownerZombieCount[msg.sender].add(1);
+  emit NewZombie(id, _name, _dna);
+}
+Ohh, you see the issue?
+
+Our test failed because we've added a cooldown period to our game, and made it so zombies have to wait 1 day after attacking (or feeding) to attack again.
+*/
+    it("zombies should be able to attack another zombie", async () => {
+        let result;
+        result = await contractInstance.createRandomZombie(zombieNames[0], {from: alice});
+        const firstZombieId = result.logs[0].args.zombieId.toNumber();
+        result = await contractInstance.createRandomZombie(zombieNames[1], {from: bob});
+        const secondZombieId = result.logs[0].args.zombieId.toNumber(); //why logs[0]?not duplicate?
+        //TODO: increase the time
+        //evm_increaseTime: increases the time for the next block.
+        //evm_mine: mines a new block.
+        /*
+        Let me explain how these functions work:
+
+        Every time a new block gets mined, the miner adds a timestamp to it. Let's say the transactions that created our zombies got mined in block 5.
+
+        Next, we call evm_increaseTime but, since the blockchain is immutable, there is no way of modifying an existing block. So, when the contract checks the time, it will not be increased.
+
+        If we run evm_mine, block number 6 gets mined (and timestamped) which means that, when we put the zombies to fight, the smart contract will "see" that a day has passed.
+
+        Putting it together, we can fix our test by traveling through time as follows:
+
+        await web3.currentProvider.sendAsync({
+        jsonrpc: "2.0",
+        method: "evm_increaseTime",
+        params: [86400],  // there are 86400 seconds in a day
+        id: new Date().getTime()
+        }, () => { });
+
+        Yeah, that’s a nice piece of code, but we wouldn’t want to add this logic to our CryptoZombies.js file.
+
+        We’ve gone ahead and moved everything to a new file named helpers/time.js. To increase the time, you'll simply have to call: time.increaseTime(86400);
+        */
+        await time.increase(time.duration.days(1))
+        await contractInstance.attack(firstZombieId, secondZombieId, {from: alice});
+        assert.equal(result.receipt.status, true);
     })
-    })
+})        
+        
+
+
 
