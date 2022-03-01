@@ -79,11 +79,33 @@ contract("CryptoZombies", (accounts) => {
     //So, instead of writing contract.new() several times, you just do it once like this:
    beforeEach(async () => {
         // let's put here the code that creates a new contract instance
+       //CryptoZombies.new() "talks" to the blockchain. This means that it's an asynchronous function. Let's add the await keyword before the function call.
+       /*
+       在 ES7 裡頭 async 的本質是 promise 的語法糖 ( 包裝得甜甜的比較好吃下肚 )，只要 function 標記為 async，就表示裡頭可以撰寫 await 的同步語法，
+       而 await 顧名思義就是「等待」，它會確保一個 promise 物件都解決 ( resolve ) 或出錯 ( reject ) 後才會進行下一步，當 async function 的內容全都結束後，
+       會返回一個 promise，這表示後方可以使用.then語法來做連接，基本的程式長相就像下面這樣：
+       async function a(){
+          await b();
+          .....       // 等 b() 完成後才會執行
+          await c();
+          .....       // 等 c() 完成後才會執行
+          await new Promise(resolve=>{
+            .....
+          });
+          .....       // 上方的 promise 完成後才會執行
+        }
+        a();
+        a().then(()=>{
+          .....       // 等 a() 完成後接著執行
+        });
+       */
         contractInstance = await CryptoZombies.new();        //remove "const" as hooks created
     });
     
     //The First Test- Creating a New Zombie
     //The first parameter passed to the it() function should be the name of our test.
+    //The second parameter (a callback function) is going to "talk" to the blockchain, which means that the function is asynchronous. 
+    //Just prepend the async keyword. This way, every time this function gets called with the await keyword, our test waits for it to return.
     it("should be able to create a new zombie", async() => { 
     //2 & 3. Replace the first parameter and make the callback async   
     // Let's create an instance of our contract. Declare a new const named contractInstance,and set it equal to the result of the CryptoZombies.new() function.
