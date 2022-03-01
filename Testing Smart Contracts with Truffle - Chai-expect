@@ -1,0 +1,87 @@
+const CryptoZombies = artifacts.require("CryptoZombies");
+const utils = require("./helpers/utils");
+const time = require("./helpers/time");
+/*
+Chapter 13: More Expressive Assertions with Chai
+
+Until now, we've been using the built-in assert module to write our assertions. While not bad, the assert module has a major drawback- the code doesn't read well. Fortunately, there are several better assertion modules out there, and Chai is one of the best.
+
+That said, let's take a look at the three kinds of assertion styles bundled into Chai:
+
+expect: lets you chain natural language assertions as follows:
+
+let lessonTitle = "Testing Smart Contracts with Truffle";
+expect(lessonTitle).to.be.a("string");
+should: allows for similar assertions as expect interface, but the chain starts with a should property:
+
+let lessonTitle = "Testing Smart Contracts with Truffle";
+lessonTitle.should.be.a("string");
+assert: provides a notation similar to that packaged with node.js and includes several additional tests and it's browser compatible:
+
+let lessonTitle = "Testing Smart Contracts with Truffle";
+assert.typeOf(lessonTitle, "string");
+In this chapter, we are going to show you how to improve your assertions with expect.
+Note: We're assuming the chai package is already installed on your computer. If that's not the case, you can easily install it like so: npm -g install chai
+*/
+//TODO: In order to use expect style, the first thing we should do is to import it into our project as follows:
+//TODO: import expect into our project
+var expect = require('chai').expect; 
+const zombieNames = ["Zombie 1", "Zombie 2"];
+contract("CryptoZombies", (accounts) => {
+    let [alice, bob] = accounts;
+    let contractInstance;
+    beforeEach(async () => {
+        contractInstance = await CryptoZombies.new();
+    });
+    it("should be able to create a new zombie", async () => {
+        const result = await contractInstance.createRandomZombie(zombieNames[0], {from: alice});
+        //TODO: replace with expect
+        expect(result.receipt.status).to.equal(true);
+        expect(result.logs[0].args.name).to.equal(zombieNames[0]);
+    })
+    it("should not allow two zombies", async () => {
+        await contractInstance.createRandomZombie(zombieNames[0], {from: alice});
+        await utils.shouldThrow(contractInstance.createRandomZombie(zombieNames[1], {from: alice}));
+    })
+    context("with the single-step transfer scenario", async () => {
+        it("should transfer a zombie", async () => {
+            const result = await contractInstance.createRandomZombie(zombieNames[0], {from: alice});
+            const zombieId = result.logs[0].args.zombieId.toNumber();
+            await contractInstance.transferFrom(alice, bob, zombieId, {from: alice});
+            const newOwner = await contractInstance.ownerOf(zombieId);
+            //TODO: replace with expect
+            expect(newOwner).to.equal(bob);
+        })
+    })
+    context("with the two-step transfer scenario", async () => {
+        it("should approve and then transfer a zombie when the approved address calls transferFrom", async () => {
+            const result = await contractInstance.createRandomZombie(zombieNames[0], {from: alice});
+            const zombieId = result.logs[0].args.zombieId.toNumber();
+            await contractInstance.approve(bob, zombieId, {from: alice});
+            await contractInstance.transferFrom(alice, bob, zombieId, {from: bob});
+            const newOwner = await contractInstance.ownerOf(zombieId);
+            //TODO: replace with expect
+            expect(newOwner).to.equal(bob);
+        })
+        it("should approve and then transfer a zombie when the owner calls transferFrom", async () => {
+            const result = await contractInstance.createRandomZombie(zombieNames[0], {from: alice});
+            const zombieId = result.logs[0].args.zombieId.toNumber();
+            await contractInstance.approve(bob, zombieId, {from: alice});
+            await contractInstance.transferFrom(alice, bob, zombieId, {from: alice});
+            const newOwner = await contractInstance.ownerOf(zombieId);
+            //TODO: replace with expect
+            expect(newOwner).to.equal(bob);
+         })
+    })
+    it("zombies should be able to attack another zombie", async () => {
+        let result;
+        result = await contractInstance.createRandomZombie(zombieNames[0], {from: alice});
+        const firstZombieId = result.logs[0].args.zombieId.toNumber();
+        result = await contractInstance.createRandomZombie(zombieNames[1], {from: bob});
+        const secondZombieId = result.logs[0].args.zombieId.toNumber();
+        await time.increase(time.duration.days(1));
+        await contractInstance.attack(firstZombieId, secondZombieId, {from: alice});
+        //TODO: replace with expect
+        expect(result.receipt.status).to.equal(true);
+    })
+})
